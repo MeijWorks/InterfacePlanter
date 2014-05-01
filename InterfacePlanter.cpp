@@ -410,6 +410,7 @@ int InterfacePlanter::checkButtons(byte _delay1, byte _delay2){
       return 2;
     }
     else{
+      button2_flag = true;
       buttons = 0;
       return 0;
     }
@@ -421,6 +422,7 @@ int InterfacePlanter::checkButtons(byte _delay1, byte _delay2){
       return -1;
     }
     else{
+      button1_flag = true;
       buttons = 0;
       return 0;
     }
@@ -432,6 +434,7 @@ int InterfacePlanter::checkButtons(byte _delay1, byte _delay2){
       return 1;
     }
     else{
+      button1_flag = true;
       buttons = 0;
       return 0;
     }
