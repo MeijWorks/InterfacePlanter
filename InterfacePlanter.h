@@ -20,13 +20,12 @@
 #ifndef InterfacePlanter_h
 #define InterfacePlanter_h
 
-#include <LiquidCrystal_I2C.h>
-#include <LiquidCrystal_UART.h>
-#include <ImplementPlanter.h>
-#include <VehicleTractor.h>
-#include <VehicleGps.h>
-#include <ConfigInterface.h>
-#include <Language.h>
+#include "LiquidCrystal_I2C.h"
+#include "ImplementPlanter.h"
+#include "VehicleTractor.h"
+#include "VehicleGps.h"
+#include "ConfigInterfacePlanter.h"
+#include "Language.h"
 
 // Software version of this library
 #define INTERFACE_VERSION 0.1
@@ -48,11 +47,7 @@ private:
   unsigned long button2_timer;
 
   // Objects
-#ifndef UART
   LiquidCrystal_I2C * lcd;
-#else
-  LiquidCrystal_UART * lcd;
-#endif
   ImplementPlanter * implement;
   VehicleTractor * tractor;
   VehicleGps * gps;
@@ -62,18 +57,10 @@ public:
   // -----------------------------------------------------------
 
   // Constructor
-#ifndef UART
   InterfacePlanter(LiquidCrystal_I2C * _lcd,
             ImplementPlanter * _implement,
             VehicleTractor * _tractor,
             VehicleGps * _gps);
-
-#else
-  InterfacePlanter(LiquidCrystal_UART * _lcd,
-            ImplementPlanter * _implement,
-            VehicleTractor * _tractor,
-            VehicleGps * _gps);
-#endif
 
   void update();
   void updateScreen(boolean _rewrite);

@@ -17,12 +17,11 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <InterfacePlanter.h>
+#include "InterfacePlanter.h"
 
 // -----------
 // Constructor
 // -----------
-#ifndef UART
 InterfacePlanter::InterfacePlanter(LiquidCrystal_I2C * _lcd,
                      ImplementPlanter * _implement,
                      VehicleTractor * _tractor,
@@ -51,36 +50,6 @@ InterfacePlanter::InterfacePlanter(LiquidCrystal_I2C * _lcd,
   gps = _gps;
 }
 
-#else
-InterfacePlanter::InterfacePlanter(LiquidCrystal_UART * _lcd,
-                     ImplementPlanter * _implement,
-                     VehicleTractor * _tractor,
-                     VehicleGps * _gps){
-  // Pin assignments and configuration
-  // Schmitt triggered inputs
-  pinMode(LEFT_BUTTON, INPUT);
-  digitalWrite(LEFT_BUTTON, LOW);
-  pinMode(RIGHT_BUTTON, INPUT);
-  digitalWrite(RIGHT_BUTTON, LOW);
-  pinMode(MODE_PIN, INPUT);
-  digitalWrite(MODE_PIN, LOW);
-  
-  // Mode
-  mode = 2; // MANUAL
-  
-  // Button flag
-  buttons = 0;
-  button1_flag = false;
-  button2_flag = false;
-
-  // Connected classes
-  lcd = _lcd;
-  implement = _implement;
-  tractor = _tractor;
-  gps = _gps;
-}
-#endif
-
 // ------------------------
 // Method for updating mode
 // ------------------------
@@ -88,6 +57,7 @@ void InterfacePlanter::update(){
   // Check buttons
   checkButtons(255, 0);
 
+  // update GPS and tractor
 #ifdef GPS
   gps->update();
 #endif
@@ -100,18 +70,13 @@ void InterfacePlanter::update(){
   //----------
   if(buttons == 2){
     mode = 3;
-    
-    // Stop any adjusting
-    implement->adjust(0);
-    
-    // Write complete screen
-    lcd->write_screen(-1);
-    
+        
+#ifdef DEBUG
+    Serial.println("C");
+#endif 
+
     // Calibrate
     calibrate();
-    
-    // After calibration rewrite total screen
-    updateScreen(1);
   }
   //-------
   // Manual
@@ -121,6 +86,10 @@ void InterfacePlanter::update(){
           implement->getPlantingelement()){
     // set mode to manual
     mode = 2;
+
+#ifdef DEBUG
+    Serial.println("M");
+#endif
   }
   else {
   //-----
@@ -130,21 +99,33 @@ void InterfacePlanter::update(){
     if (millis() - gps->getGgaFixAge() > 2000 ||
         millis() - gps->getVtgFixAge() > 2000 ||
         millis() - gps->getXteFixAge() > 2000 ||
-        gps->getQuality() != 4 ||
+        //gps->getQuality() != 4 ||
         !gps->minSpeed()){
       
       // set mode to hold
       mode = 1;
+      
+#ifdef DEBUG
+      Serial.println("H");
+#endif
     }
-//---------- 
-// Automatic
-//----------
+    //---------- 
+    // Automatic
+    //----------
     else {
       // set mode to automatic
       mode = 0;
+    
+#ifdef DEBUG
+      Serial.println("A");
+#endif
     }
 #else
     mode = 0;
+
+#ifdef DEBUG
+    Serial.println("A");
+#endif
 #endif
   }
   
@@ -451,10 +432,18 @@ int InterfacePlanter::checkButtons(byte _delay1, byte _delay2){
 // Method for calibrating implement
 // --------------------------------
 void InterfacePlanter::calibrate(){
+  // Stop any adjusting
+  implement->stop();
+  
+  // Write complete screen
+  lcd->write_screen(-1);
+  
   // Temporary variables
   int _temp, _temp2, _temp3;
   
+  // --------------------
   // Position calibration
+  // --------------------
   lcd->write_buffer(L_CAL_POS, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -468,17 +457,14 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_POS, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Width calibration
-      lcd->write_buffer(L_CAL_POS, 0);
       lcd->write_buffer(L_CAL_ADJUST, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_POS_AD, 3);
@@ -528,7 +514,6 @@ void InterfacePlanter::calibrate(){
           }
         }
       }
-      lcd->write_buffer(L_CAL_POS, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
       lcd->write_buffer(L_BLANK, 3);
@@ -541,7 +526,9 @@ void InterfacePlanter::calibrate(){
   delay(1000);
 
 #ifndef GPS
+  // ---------------
   // XTE calibration
+  // ---------------
   lcd->write_buffer(L_CAL_XTE, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -556,7 +543,6 @@ void InterfacePlanter::calibrate(){
 
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_XTE, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
       lcd->write_buffer(L_BLANK, 3);
@@ -567,7 +553,6 @@ void InterfacePlanter::calibrate(){
     }
     else if(checkButtons(0, 0) == 1){
       // XTE calibration
-      lcd->write_buffer(L_CAL_XTE, 0);
       lcd->write_buffer(L_BLANK, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_XTE_AD, 3);
@@ -593,8 +578,6 @@ void InterfacePlanter::calibrate(){
         while(checkButtons(0, 0) != 0){
         }
 
-        delay(1000);
-
         // Adjust loop
         while(true){ 
           if (checkButtons(0, 0) == 2){
@@ -605,7 +588,6 @@ void InterfacePlanter::calibrate(){
           lcd->write_screen(1);
         }
       }
-      lcd->write_buffer(L_CAL_XTE, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
       lcd->write_buffer(L_BLANK, 3);
@@ -618,7 +600,9 @@ void InterfacePlanter::calibrate(){
   delay(1000);
 #endif
 
+  // ---------
   // Adjust KP
+  // ---------
   lcd->write_buffer(L_CAL_KP, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -632,29 +616,21 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_KP, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
-
+      
       lcd->write_screen(-1);
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Adjust KP
-      lcd->write_buffer(L_CAL_KP, 0);
       lcd->write_buffer(L_CAL_ADJUST, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_KP_AD, 3);
 
+      lcd->write_screen(-1);
+      
       _temp = implement->getKP();
-      _temp2 = _temp / 10;
-      _temp3 = _temp / 100;
-
-      lcd->write_buffer(_temp3 + '0', 3, 13);
-      lcd->write_buffer('.', 3, 14);
-      lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
-      lcd->write_buffer(_temp  % 10 + '0', 3, 16);
 
       while(checkButtons(0, 0) != 0){
       }
@@ -683,10 +659,8 @@ void InterfacePlanter::calibrate(){
         lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
         lcd->write_buffer(_temp  % 10 + '0', 3, 16);
       }
-      lcd->write_buffer(L_CAL_KP, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_CAL_KP_AD, 3);
 
       lcd->write_buffer(_temp3 + '0', 3, 13);
       lcd->write_buffer('.', 3, 14);
@@ -701,7 +675,9 @@ void InterfacePlanter::calibrate(){
   }
   delay(1000);
 
+  // ---------
   // Adjust KI
+  // ---------
   lcd->write_buffer(L_CAL_KI, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -715,33 +691,26 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_KI, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Adjust KI
-      lcd->write_buffer(L_CAL_KI, 0);
       lcd->write_buffer(L_CAL_ADJUST, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_KI_AD, 3);
 
-      _temp = implement->getKI();
-      _temp2 = _temp / 10;
-      _temp3 = _temp / 100;
+      lcd->write_screen(-1);
 
-      lcd->write_buffer(_temp3 + '0', 3, 13);
-      lcd->write_buffer('.', 3, 14);
-      lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
-      lcd->write_buffer(_temp  % 10 + '0', 3, 16);
+      _temp = implement->getKI();
 
       while(checkButtons(0, 0) != 0){
       }
 
+      // Adjust loop
       while(true){
         lcd->write_screen(1);
         checkButtons(0, 255);
@@ -765,10 +734,8 @@ void InterfacePlanter::calibrate(){
         lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
         lcd->write_buffer(_temp  % 10 + '0', 3, 16);
       }
-      lcd->write_buffer(L_CAL_KI, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_CAL_KI_AD, 3);
 
       lcd->write_buffer(_temp3 + '0', 3, 13);
       lcd->write_buffer('.', 3, 14);
@@ -783,7 +750,9 @@ void InterfacePlanter::calibrate(){
   }
   delay(1000);
 
+  // ---------
   // Adjust KD
+  // ---------
   lcd->write_buffer(L_CAL_KD, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -797,33 +766,26 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_KD, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Adjust KD
-      lcd->write_buffer(L_CAL_KD, 0);
       lcd->write_buffer(L_CAL_ADJUST, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_KD_AD, 3);
 
+      lcd->write_screen(-1);
+      
       _temp = implement->getKD();
-      _temp2 = _temp / 10;
-      _temp3 = _temp / 100;
-
-      lcd->write_buffer(_temp3 + '0', 3, 13);
-      lcd->write_buffer('.', 3, 14);
-      lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
-      lcd->write_buffer(_temp  % 10 + '0', 3, 16);
 
       while(checkButtons(0, 0) != 0){
       }
 
+      // Adjust loop
       while(true){
         lcd->write_screen(1);
         checkButtons(0, 255);
@@ -847,10 +809,8 @@ void InterfacePlanter::calibrate(){
         lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
         lcd->write_buffer(_temp  % 10 + '0', 3, 16);
       }
-      lcd->write_buffer(L_CAL_KD, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_CAL_KD_AD, 3);
 
       lcd->write_buffer(_temp3 + '0', 3, 13);
       lcd->write_buffer('.', 3, 14);
@@ -865,7 +825,9 @@ void InterfacePlanter::calibrate(){
   }
   delay(1000);
 
+  // -----------------
   // Adjust PWM manual
+  // -----------------
   lcd->write_buffer(L_CAL_PWM_M, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -879,29 +841,22 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_PWM_M, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
-
+      
       lcd->write_screen(-1);
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Adjust PWM manual
-      lcd->write_buffer(L_CAL_PWM_M, 0);
       lcd->write_buffer(L_CAL_ADJUST, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_PWM_M_AD, 3);
 
       _temp = implement->getPwmMan();
-      _temp2 = _temp / 10;
-      _temp3 = _temp / 100;
-
-      lcd->write_buffer(_temp3 + '0', 3, 14);
-      lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
-      lcd->write_buffer(_temp  % 10 + '0', 3, 16);
-
+      
+      lcd->write_screen(-1);
+        
       while(checkButtons(0, 0) != 0){
       }
 
@@ -927,10 +882,8 @@ void InterfacePlanter::calibrate(){
         lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
         lcd->write_buffer(_temp  % 10 + '0', 3, 16);
       }
-      lcd->write_buffer(L_CAL_PWM_M, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_CAL_PWM_M_AD, 3);
       
       lcd->write_buffer(_temp3 + '0', 3, 14);
       lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
@@ -944,7 +897,9 @@ void InterfacePlanter::calibrate(){
   }
   delay(1000);
 
+  // ---------------
   // Adjust PWM auto
+  // ---------------
   lcd->write_buffer(L_CAL_PWM_A, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -958,10 +913,8 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_PWM_A, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
       break;
@@ -974,13 +927,9 @@ void InterfacePlanter::calibrate(){
       lcd->write_buffer(L_CAL_PWM_A_AD, 3);
 
       _temp = implement->getPwmAuto();
-      _temp2 = _temp / 10;
-      _temp3 = _temp / 100;
 
-      lcd->write_buffer(_temp3 % 10 + '0', 3, 14);
-      lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
-      lcd->write_buffer(_temp  % 10 + '0', 3, 16);
-
+      lcd->write_screen(-1);
+      
       while(checkButtons(0, 0) != 0){
       }
 
@@ -1006,10 +955,8 @@ void InterfacePlanter::calibrate(){
         lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
         lcd->write_buffer(_temp  % 10 + '0', 3, 16);
       }
-      lcd->write_buffer(L_CAL_PWM_A, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_CAL_PWM_A_AD, 3);
 
       lcd->write_buffer(_temp3 + '0', 3, 14);
       lcd->write_buffer(_temp2 % 10 + '0', 3, 15);
@@ -1023,7 +970,9 @@ void InterfacePlanter::calibrate(){
   }
   delay(1000);
 
+  // ------------
   // Adjust error
+  // ------------
   lcd->write_buffer(L_CAL_OFFSET, 0);
   lcd->write_buffer(L_CAL_ACCEPT, 1);
   lcd->write_buffer(L_CAL_DECLINE, 2);
@@ -1037,27 +986,22 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_OFFSET, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Adjust error
-      lcd->write_buffer(L_CAL_OFFSET, 0);
       lcd->write_buffer(L_CAL_ADJUST, 1);
       lcd->write_buffer(L_CAL_ENTER, 2);
       lcd->write_buffer(L_CAL_OFFSET_AD, 3);
 
       _temp = implement->getOffset();
-      _temp2 = _temp / 10;
 
-      lcd->write_buffer(_temp2 + '0', 3, 15);
-      lcd->write_buffer(_temp % 10 + '0', 3, 16);
-
+      lcd->write_screen(-1);
+      
       while(checkButtons(0, 0) != 0){
       }
 
@@ -1081,10 +1025,8 @@ void InterfacePlanter::calibrate(){
         lcd->write_buffer(_temp2 + '0', 3, 15);
         lcd->write_buffer(_temp % 10 + '0', 3, 16);
       }
-      lcd->write_buffer(L_CAL_OFFSET, 0);
       lcd->write_buffer(L_CAL_DONE, 1);
       lcd->write_buffer(L_BLANK, 2);
-      lcd->write_buffer(L_CAL_OFFSET_AD, 3);
 
       lcd->write_buffer(_temp2 + '0', 3, 15);
       lcd->write_buffer(_temp % 10 + '0', 3, 16);
@@ -1092,6 +1034,76 @@ void InterfacePlanter::calibrate(){
       lcd->write_screen(-1);
 
       implement->setOffset(_temp);
+      break;
+    }
+  }
+  delay(1000);
+
+  // ----------
+  // Deutz
+  // ----------
+  lcd->write_buffer(L_CAL_DEUTZ, 0);
+  lcd->write_buffer(L_CAL_ACCEPT, 1);
+  lcd->write_buffer(L_CAL_DECLINE, 2);
+  lcd->write_buffer(L_BLANK, 3);
+
+    lcd->write_screen(-1);
+
+  while(checkButtons(0, 0) != 0){
+  }
+
+  while(true){
+    if(checkButtons(0, 0) == -1){
+      // print message to LCD
+      lcd->write_buffer(L_CAL_DECLINED, 1);
+      lcd->write_buffer(L_BLANK, 2);
+
+      lcd->write_screen(-1);
+      break;
+    }
+    else if(checkButtons(0, 0) == 1){
+      // Setting sim mode
+      lcd->write_buffer(L_CAL_ADJUST, 1);
+      lcd->write_buffer(L_CAL_ENTER, 2);
+      
+      lcd->write_screen(-1);
+
+      _temp = tractor->getDeutz();
+
+      while(true){
+        lcd->write_screen(1);
+        checkButtons(0, 255);
+
+        if (buttons == 1){
+          _temp = 1;
+        }
+        else if (buttons == -1){
+          _temp = 0;
+        }
+        else if (buttons == 2){
+          break;
+        }
+
+        if (_temp){
+          lcd->write_buffer(L_CAL_ON, 3);
+        }
+        else {
+          lcd->write_buffer(L_CAL_OFF, 3);
+        }
+
+      }
+      lcd->write_buffer(L_CAL_DONE, 1);
+      lcd->write_buffer(L_BLANK, 2);
+      
+      if (_temp){
+        tractor->enableDeutz();
+      }
+      else {
+        tractor->disableDeutz();
+      }
+      
+      lcd->write_screen(-1);
+
       break;
     }
   }
@@ -1111,26 +1123,24 @@ void InterfacePlanter::calibrate(){
   while(true){
     if(checkButtons(0, 0) == -1){
       // print message to LCD
-      lcd->write_buffer(L_CAL_COMPLETE, 0);
       lcd->write_buffer(L_CAL_DECLINED, 1);
       lcd->write_buffer(L_CAL_NOSAVE, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
 
+      tractor->resetCalibration();
       implement->resetCalibration();
 
       break;
     }
     else if(checkButtons(0, 0) == 1){
       // Commit data
+      tractor->commitCalibration();
       implement->commitCalibration();
 
       // Print message to LCD
-      lcd->write_buffer(L_CAL_COMPLETE, 0);
       lcd->write_buffer(L_CAL_DDONE, 1);
       lcd->write_buffer(L_CAL_SAVE, 2);
-      lcd->write_buffer(L_BLANK, 3);
 
       lcd->write_screen(-1);
 
@@ -1138,4 +1148,8 @@ void InterfacePlanter::calibrate(){
     }
   }
   delay(1000);
+  
+  // Refresh total screen
+  updateScreen(1);
+  lcd->write_screen(-1);
 }

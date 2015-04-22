@@ -1,6 +1,6 @@
 /*
-  Config file for ploegbesturing
-Copyright (C) 2011-2013 J.A. Woltjer.
+  Config file for pootmachinebesturing
+Copyright (C) 2011-2015 J.A. Woltjer.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -20,9 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // Serial messages
 // ---------------
 #define S_MEIJWORKS     "MeijWorks"
-#define S_DEVICE        "Plantercontrol v 1.00"
+#define S_DEVICE        "Plantercontrol v 1.02"
 #define S_LIBRARY       "FarmGPS library v "
-#define S_COPYRIGHT     "(c) 2011 - 2014 by J.A. Woltjer"
+#define S_COPYRIGHT     "(c) 2011 - 2015 by J.A. Woltjer"
 #define S_TIMES         "Times started: "
 #define S_DIVIDE        "-------------------------------"
 
@@ -121,6 +121,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define L_CAL_ADJUST    "+ / - : verstellen  "
 #define L_CAL_ENTER     "Beide : accepteren  "
 
+#define L_CAL_ON        "                 aan"
+#define L_CAL_OFF       "                 uit"
+
 #define L_CAL_POS       "Breedte calibratie  "
 #define L_CAL_POS_AD    "Verstel naar     cm "
 
@@ -147,6 +150,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define L_CAL_QUAL      "Corrigeer RTK ident."
 #define L_CAL_QUAL_AD   "Quality:            "
+
+#define L_CAL_DEUTZ     "Inverteer hefsignaal"
+#define L_CAL_DEUTZ_AD  "Inversie:           "
 
 #define L_CAL_SPEED     "Snelheids calibratie"
 #define L_CAL_SPEED_AD  "Accelereer tot 10kmh"
